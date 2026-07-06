@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <meta name="theme-color" content="#07060f" />
 <title>VECTOR HEXAGON</title>
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Hexagon" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
@@ -69,6 +76,16 @@
     box-shadow: 0 0 30px rgba(125,249,255,0.45); animation: pulse 1.5s infinite;
   }
   @keyframes pulse { 0%,100%{ transform: scale(1);} 50%{ transform: scale(1.05);} }
+
+  .install {
+    margin-top: 14px; font-family: 'Orbitron'; font-weight: 700; letter-spacing: 0.16em;
+    font-size: clamp(11px, 2.8vw, 14px); color: #7df9ff; background: transparent;
+    padding: 11px 22px; cursor: pointer; border: 1px solid #2c6b78;
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%);
+    transition: background .15s, color .15s;
+  }
+  .install:hover { background: rgba(125,249,255,0.12); }
+  .installhint b { color: #7df9ff; }
 
   /* ---- game-over card ---- */
   #over h1 { font-size: clamp(26px, 8vw, 60px); }
@@ -137,6 +154,10 @@
       Slip your cursor into the gap before the wall reaches the core.
     </div>
     <button class="go" id="goBtn">BEGIN</button>
+    <button class="install hidden" id="installBtn">⬇ INSTALL APP</button>
+    <div class="hint installhint hidden" id="iosHint" style="margin-top:14px">
+      Install: tap <b>Share</b>, then <b>Add to Home Screen</b>
+    </div>
   </div>
 
   <!-- GAME OVER -->
@@ -763,6 +784,37 @@
     }
     render();
     requestAnimationFrame(frame);
+  }
+
+  // ---------- PWA: install prompt + offline service worker ----------
+  const installBtn = document.getElementById('installBtn');
+  const iosHint    = document.getElementById('iosHint');
+  let deferredPrompt = null;
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();              // keep the prompt so we can trigger it from our button
+    deferredPrompt = e;
+    if (!isStandalone) installBtn.classList.remove('hidden');
+  });
+  installBtn.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    installBtn.classList.add('hidden');
+    deferredPrompt.prompt();
+    try { await deferredPrompt.userChoice; } catch(e){}
+    deferredPrompt = null;
+  });
+  window.addEventListener('appinstalled', () => { installBtn.classList.add('hidden'); deferredPrompt=null; });
+
+  // iOS Safari has no beforeinstallprompt — show the Share → Add to Home Screen hint
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isSafari = isIOS && !/crios|fxios/i.test(navigator.userAgent);
+  if (isSafari && !isStandalone) iosHint.classList.remove('hidden');
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(()=>{});
+    });
   }
 
   buildDiffs();
