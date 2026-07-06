@@ -19,6 +19,22 @@ python3 -m http.server 8791
 Published via GitHub Pages once enabled (Settings → Pages → deploy from
 `main`): `https://martingrahn-cmd.github.io/vector-hexagon/`.
 
+## Install as an app (PWA)
+
+Over HTTPS (i.e. from GitHub Pages, not a plain `file://`), the game is an
+installable Progressive Web App: it runs full-screen, has its own home-screen
+icon, and **plays fully offline** — a service worker (`sw.js`) caches the shell,
+icons and the soundtrack on first visit.
+
+- **Desktop / Android (Chrome/Edge):** an **INSTALL APP** button appears on the
+  title screen (browser install icon works too).
+- **iOS Safari:** tap **Share → Add to Home Screen** (the title screen shows a
+  hint). Launches standalone, no browser chrome.
+
+`manifest.webmanifest` uses relative paths, so it installs correctly from the
+project subpath. Bump `CACHE` in `sw.js` when cached files change to push an
+update to installed clients.
+
 ## Controls
 
 | Input | Action |
