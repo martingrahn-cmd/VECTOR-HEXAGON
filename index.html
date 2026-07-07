@@ -87,6 +87,18 @@
   .install:hover { background: rgba(125,249,255,0.12); }
   .installhint b { color: #7df9ff; }
 
+  .ver {
+    margin-top: 22px; font-family: 'Orbitron'; font-weight: 700; letter-spacing: 0.22em;
+    font-size: 11px; color: #4a5178;
+  }
+  #updateChip {
+    margin-top: 12px; font-family: 'Orbitron'; font-weight: 800; letter-spacing: 0.14em;
+    font-size: clamp(11px, 2.8vw, 13px); color: #07060f; background: #ffd166; cursor: pointer;
+    padding: 10px 18px; border: 0;
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%);
+    box-shadow: 0 0 22px rgba(255,209,102,0.5); animation: pulse 1.5s infinite;
+  }
+
   /* ---- game-over card ---- */
   #over h1 { font-size: clamp(26px, 8vw, 60px); }
   .stat { font-family: 'Rajdhani'; font-weight: 600; letter-spacing: 0.05em; color: #c8d0ee; font-size: clamp(14px, 3.6vw, 19px); margin: 2px 0; }
@@ -158,6 +170,8 @@
     <div class="hint installhint hidden" id="iosHint" style="margin-top:14px">
       Install: tap <b>Share</b>, then <b>Add to Home Screen</b>
     </div>
+    <button class="hidden" id="updateChip">◆ NEW VERSION — TAP TO UPDATE</button>
+    <div class="ver" id="version">v—</div>
   </div>
 
   <!-- GAME OVER -->
@@ -187,6 +201,13 @@
 <script>
 "use strict";
 (() => {
+  // ── VERSION ─────────────────────────────────────────────────────────────
+  // Bump this AND the CACHE string in sw.js together on every deploy, so the
+  // start screen shows the running version and installed apps update.
+  const VERSION = 'v1.1';
+  const verEl = document.getElementById('version');
+  if (verEl) verEl.textContent = VERSION;
+  // ────────────────────────────────────────────────────────────────────────
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
   const TAU = Math.PI * 2, SIDES = 6, LANE = TAU / SIDES;
@@ -821,10 +842,35 @@
   const isSafari = isIOS && !/crios|fxios/i.test(navigator.userAgent);
   if (isSafari && !isStandalone) iosHint.classList.remove('hidden');
 
+  // service worker + "new version available" flow
+  const updateChip = document.getElementById('updateChip');
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').catch(()=>{});
+      navigator.serviceWorker.register('sw.js').then(reg => {
+        // a worker already waiting from a previous visit
+        if (reg.waiting && navigator.serviceWorker.controller) showUpdate(reg.waiting);
+        reg.addEventListener('updatefound', () => {
+          const nw = reg.installing; if (!nw) return;
+          nw.addEventListener('statechange', () => {
+            // installed + a controller already exists => this is an UPDATE, not first install
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) showUpdate(nw);
+          });
+        });
+      }).catch(()=>{});
+      // reload ONLY when the user opted into the update (not on first-visit claim)
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (userTriggeredUpdate) location.reload();
+      });
     });
+  }
+  let userTriggeredUpdate = false;
+  function showUpdate(worker){
+    updateChip.classList.remove('hidden');
+    updateChip.onclick = () => {
+      updateChip.textContent = 'UPDATING…';
+      userTriggeredUpdate = true;
+      worker.postMessage('skipWaiting');   // SW activates -> controllerchange -> reload
+    };
   }
 
   buildDiffs();

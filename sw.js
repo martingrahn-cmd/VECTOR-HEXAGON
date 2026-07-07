@@ -1,7 +1,8 @@
 /* Vector Hexagon — offline service worker.
    Cache-first for the app shell so it launches and plays with no network.
    Bump CACHE when any cached file changes to force an update. */
-const CACHE = 'vhex-v2';
+/* Keep this in sync with VERSION in index.html. */
+const CACHE = 'vhex-v1.1';
 const ASSETS = [
   './',
   './index.html',
@@ -20,8 +21,14 @@ self.addEventListener('install', e => {
     caches.open(CACHE)
       // don't fail the whole install if one optional asset 404s
       .then(c => Promise.allSettled(ASSETS.map(u => c.add(u))))
-      .then(() => self.skipWaiting())
+    // NOTE: no skipWaiting here — the new worker waits so the page can show a
+    // "new version available" prompt; it activates only when the user taps it.
   );
+});
+
+// the page asks us to activate immediately when the user taps "update"
+self.addEventListener('message', e => {
+  if (e.data === 'skipWaiting') self.skipWaiting();
 });
 
 self.addEventListener('activate', e => {
