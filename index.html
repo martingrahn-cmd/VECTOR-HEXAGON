@@ -220,7 +220,7 @@
   // ── VERSION ─────────────────────────────────────────────────────────────
   // Bump this AND the CACHE string in sw.js together on every deploy, so the
   // start screen shows the running version and installed apps update.
-  const VERSION = 'v1.4';
+  const VERSION = 'v1.5';
   const verEl = document.getElementById('version');
   if (verEl) verEl.textContent = VERSION;
   // ────────────────────────────────────────────────────────────────────────
@@ -741,7 +741,7 @@
   function scheduleMorph(){
     const opts = [4,5,6].filter(n => n !== SIDES);
     pendingSides = opts[rnd(opts.length)];
-    nextMorphAt = elapsed + 12 + Math.random()*8;   // roughly every 12–20s
+    nextMorphAt = elapsed + 9 + Math.random()*6;    // roughly every 9–15s
   }
   function updateMorph(dt){
     if (morph === 'none'){
@@ -759,7 +759,11 @@
     if (morph === 'collapse'){
       morphT += dt; world += 7*dt;
       morphScale = Math.max(0.0001, 1 - morphT/MORPH_LEN);
-      if (morphT >= MORPH_LEN){ setSides(pendingSides); morph='expand'; morphT=0; beatFlash=1; pulse=1; buzz(18); }
+      if (morphT >= MORPH_LEN){
+        setSides(pendingSides); morph='expand'; morphT=0; beatFlash=1; pulse=1; buzz(18);
+        // announce the new shape so the change is unmistakable
+        callout(SHAPE_NAME[SIDES], false, '#7df9ff'); announce([659.25, 880], 'square');
+      }
       return;
     }
     if (morph === 'expand'){
