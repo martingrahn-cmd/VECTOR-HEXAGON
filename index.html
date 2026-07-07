@@ -220,7 +220,7 @@
   // ── VERSION ─────────────────────────────────────────────────────────────
   // Bump this AND the CACHE string in sw.js together on every deploy, so the
   // start screen shows the running version and installed apps update.
-  const VERSION = 'v1.3';
+  const VERSION = 'v1.4';
   const verEl = document.getElementById('version');
   if (verEl) verEl.textContent = VERSION;
   // ────────────────────────────────────────────────────────────────────────
@@ -668,10 +668,10 @@
     // reset — the run starts on the selected tier and climbs from there
     stage = diffIdx; stageTime = 0;
     setSides(6);                                  // always begin as a hexagon
-    morph='none'; morphScale=1; morphT=0; scheduleMorph();
     const d=DIFFS[stage];
     player = LANE*0.5; walls.length=0; pending.length=0;
     elapsed=0; speed=d.base; world=0; spinDir=1; spinSpeed=d.spin*0.6; spinTimer=2.5;
+    morph='none'; morphScale=1; morphT=0; scheduleMorph();  // scheduleMorph AFTER elapsed=0
     hue = TIER_HUE[stage]; hueDir=1; distAccum=0; shake=0; pulse=0; beatClock=0;
     cursorGlow=0; beatFlash=0; milestoneIdx=0;
     stepIdx=0; if (ac) audioBeat = ac.currentTime + 0.06;
