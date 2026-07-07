@@ -45,6 +45,16 @@ update to installed clients.
 | `Esc` | back to menu |
 | `M` | toggle sound |
 
+## Clearing a tier (60s) and climbing
+
+Survive **60 seconds** on a tier and the run **auto-advances into the next one,
+seamlessly, in the same run** — the field flips its spin, snaps to the tier's
+colour and the announcer calls the new level, while the timer keeps running. The
+shape milestones (LINE/TRIANGLE/SQUARE/PENTAGON/HEXAGON at 10s steps) mark
+progress toward each clear. Start on any tier; clearing the last one
+(**HEXAGONEST**) is a **YOU WIN**, and each tier you clear from earns a ★ on the
+menu (persisted). The HUD shows the tier you're currently in.
+
 ## Feel
 
 - **Announcer** — a spoken "BEGIN" / "GAME OVER" (Web Speech) plus on-screen

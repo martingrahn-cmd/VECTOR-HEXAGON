@@ -104,6 +104,7 @@
   .stat { font-family: 'Rajdhani'; font-weight: 600; letter-spacing: 0.05em; color: #c8d0ee; font-size: clamp(14px, 3.6vw, 19px); margin: 2px 0; }
   .stat .big { font-family: 'Orbitron'; font-weight: 800; color: #7df9ff; font-size: clamp(30px, 9vw, 56px); display: block; }
   .newbest { font-family: 'Orbitron'; font-weight: 800; letter-spacing: 0.18em; color: #ffd166; font-size: clamp(13px, 3.4vw, 18px); margin: 8px 0; text-shadow: 0 0 18px rgba(255,209,102,0.55); }
+  .clearbanner { font-family: 'Orbitron'; font-weight: 900; letter-spacing: 0.16em; color: #7df9ff; font-size: clamp(14px, 3.8vw, 20px); margin: 8px 0; text-shadow: 0 0 22px rgba(125,249,255,0.6); }
 
   /* ---- in-game HUD ---- */
   #hud {
@@ -113,6 +114,7 @@
   #hud .lbl { font-family: 'Orbitron'; font-weight: 700; letter-spacing: 0.22em; font-size: 11px; color: #8a93b8; }
   #hud .time { font-family: 'Orbitron'; font-weight: 900; font-size: clamp(26px, 7vw, 44px); color: #fff; line-height: 1; }
   #hud .best { font-family: 'Rajdhani'; font-weight: 600; letter-spacing: 0.06em; font-size: 13px; color: #7df9ff; margin-top: 3px; }
+  #hud .lvl { font-family: 'Orbitron'; font-weight: 800; letter-spacing: 0.16em; font-size: clamp(11px, 2.4vw, 13px); color: #ffd166; margin-top: 6px; }
 
   #sound {
     position: fixed; bottom: 14px; left: 14px; z-index: 6; cursor: pointer;
@@ -176,7 +178,8 @@
 
   <!-- GAME OVER -->
   <div class="overlay hidden" id="over">
-    <h1>GAME <span class="a">OVER</span></h1>
+    <h1 id="overTitle">GAME <span class="a">OVER</span></h1>
+    <div class="clearbanner hidden" id="clearBanner">★ CLEARED ★</div>
     <div class="newbest hidden" id="newbest">◆ NEW BEST ◆</div>
     <div class="stat"><span class="big" id="finalTime">0.00</span>SECONDS SURVIVED</div>
     <div class="stat" id="overBest">BEST 0.00</div>
@@ -189,6 +192,7 @@
     <div class="lbl">TIME</div>
     <div class="time" id="hudTime">0.00</div>
     <div class="best" id="hudBest">BEST 0.00</div>
+    <div class="lvl" id="hudLevel">HEXAGON</div>
   </div>
 
   <div id="callout"></div>
@@ -204,7 +208,7 @@
   // ── VERSION ─────────────────────────────────────────────────────────────
   // Bump this AND the CACHE string in sw.js together on every deploy, so the
   // start screen shows the running version and installed apps update.
-  const VERSION = 'v1.1';
+  const VERSION = 'v1.2';
   const verEl = document.getElementById('version');
   if (verEl) verEl.textContent = VERSION;
   // ────────────────────────────────────────────────────────────────────────
@@ -220,10 +224,16 @@
   ];
   let diffIdx = 0;
 
-  // ---------- persistent bests ----------
+  const TIER_HUE = [200, 45, 338];   // per-tier base hue
+  const STAGE_LEN = 60;              // seconds to clear a tier before it auto-advances
+
+  // ---------- persistent bests + clears ----------
   const bestKey = i => 'vhex-best-' + DIFFS[i].key;
   const getBest = i => parseFloat(localStorage.getItem(bestKey(i)) || '0') || 0;
   const setBest = (i,v) => { try { localStorage.setItem(bestKey(i), String(v)); } catch(e){} };
+  const clearKey = i => 'vhex-cleared-' + DIFFS[i].key;
+  const getCleared = i => localStorage.getItem(clearKey(i)) === '1';
+  const setCleared = i => { try { localStorage.setItem(clearKey(i), '1'); } catch(e){} };
   const fmt = t => t.toFixed(2);
 
   // ---------- viewport ----------
@@ -276,14 +286,17 @@
   let cursorGlow = 0;       // close-call glow, decays
   let beatFlash = 0;        // screen flash on strong beats
   let milestoneIdx = 0;     // next survival-milestone to announce
+  let stage = 0;            // current difficulty tier this run is on (auto-advances)
+  let stageTime = 0;        // seconds elapsed within the current tier
+  let won = false;          // set when the final tier is cleared
 
   const BPM = 152, BEAT = 60/BPM;
 
-  // survival milestones — announced like the original's shape names
+  // in-tier shape milestones (the 60s mark is the tier clear, handled separately)
   const MILESTONES = [
     { t:10, label:'LINE'     }, { t:20, label:'TRIANGLE' },
     { t:30, label:'SQUARE'   }, { t:40, label:'PENTAGON' },
-    { t:50, label:'HEXAGON'  }, { t:60, label:'PERFECT'  },
+    { t:50, label:'HEXAGON'  },
   ];
 
   // ---------- patterns ----------
@@ -306,14 +319,14 @@
     // C-shape — gap jumps across, forcing a long sweep
     () => { const g=rnd(6); return [ openMask(g), openMask(g+3), openMask(g) ]; },
   ];
-  // difficulty-weighted pattern pick
+  // difficulty-weighted pattern pick (by current tier)
   function nextPattern(){
-    const hard = diffIdx;
+    const hard = stage;
     const pool = [0,1,1,2,3,4,5];
     if (hard>=1) pool.push(1,2,5);
     if (hard>=2) pool.push(2,2,5,1);
-    // early grace: only calm patterns in first 4s
-    if (elapsed < 4) return PATTERNS[3+rnd(2)]; // spike or breather
+    // brief grace at the start of each tier: only calm patterns
+    if (stageTime < 3) return PATTERNS[3+rnd(2)]; // spike or breather
     return PATTERNS[pool[rnd(pool.length)]];
   }
 
@@ -528,7 +541,8 @@
       const el=document.createElement('div');
       el.className='diff d'+i+(i===diffIdx?' sel':'');
       const b=getBest(i);
-      el.innerHTML = d.name + '<span class="best">'+(b>0?('BEST '+fmt(b)):'—')+'</span>';
+      const star = getCleared(i) ? ' ★' : '';
+      el.innerHTML = d.name + star + '<span class="best">'+(b>0?('BEST '+fmt(b)):'—')+'</span>';
       el.addEventListener('click', () => { diffIdx=i; initAudio(); blip(560+i*80); buildDiffs(); });
       diffsEl.appendChild(el);
     });
@@ -564,36 +578,60 @@
     buildDiffs();
   }
 
+  function setHudLevel(){ document.getElementById('hudLevel').textContent = DIFFS[stage].name; }
+
   function startGame(){
-    state=ST.PLAY;
+    state=ST.PLAY; won=false;
     startEl.classList.add('hidden'); startEl.classList.remove('on');
     overEl.classList.add('hidden'); overEl.classList.remove('on');
     hudEl.classList.remove('hidden');
-    // reset
-    const d=DIFFS[diffIdx];
+    // reset — the run starts on the selected tier and climbs from there
+    stage = diffIdx; stageTime = 0;
+    const d=DIFFS[stage];
     player = LANE*0.5; walls.length=0; pending.length=0;
     elapsed=0; speed=d.base; world=0; spinDir=1; spinSpeed=d.spin*0.6; spinTimer=2.5;
-    hue = [200,45,338][diffIdx]; hueDir=1; distAccum=0; shake=0; pulse=0; beatClock=0;
+    hue = TIER_HUE[stage]; hueDir=1; distAccum=0; shake=0; pulse=0; beatClock=0;
     cursorGlow=0; beatFlash=0; milestoneIdx=0;
     stepIdx=0; if (ac) audioBeat = ac.currentTime + 0.06;
     if (ac && ac.state==='suspended') ac.resume();
     // adopt a committed soundtrack on first play, if one is present
     if (hasBundledTrack && musicMode==='synth' && !audioEl) loadMusicFromURL('assets/track.mp3', false);
     musicStart();
+    setHudLevel();
     document.getElementById('hudBest').textContent = 'BEST ' + fmt(getBest(diffIdx));
     callout('BEGIN', false, '#7df9ff'); announce([523.25, 659.25, 783.99], 'square'); say('Begin');
   }
 
-  function gameOver(){
-    state=ST.OVER; deathSound(); shake = 1; musicStop();
-    buzz([45, 40, 130]);                          // mobile crash haptic
-    const b=getBest(diffIdx); let isNew=false;
-    if (elapsed > b){ setBest(diffIdx, elapsed); isNew=true; }
+  // tier cleared at 60s -> seamlessly climb into the next, same run, timer runs on
+  function advanceStage(){
+    stage++; stageTime = 0; milestoneIdx = 0;
+    hue = TIER_HUE[stage]; hueDir = 1;         // snap colour to the new tier
+    spinDir *= -1; spinTimer = 2.5;            // flip the spin for drama
+    beatFlash = 1; shake = 0.55; pulse = 1;
+    buzz([25, 35, 25]);
+    setHudLevel();
+    callout(DIFFS[stage].name + '!', true, '#7df9ff');
+    announce([523.25, 659.25, 783.99, 1046.5], 'square'); say(DIFFS[stage].name);
+  }
+
+  function gameOver(){ endRun(false); }
+
+  function endRun(victory){
+    state=ST.OVER; shake = 1; musicStop(); won = victory;
+    if (victory){ setCleared(diffIdx); buzz([50,40,50,40,120]); announce([659,784,988,1319],'square'); say('Cleared'); }
+    else        { deathSound(); buzz([45,40,130]); announce([392,311.13,246.94],'sawtooth'); say('Game Over'); }
+    let isNew=false;
+    if (elapsed > getBest(diffIdx)){ setBest(diffIdx, elapsed); isNew=true; }
     document.getElementById('finalTime').textContent = fmt(elapsed);
     document.getElementById('overBest').textContent = 'BEST ' + fmt(getBest(diffIdx));
-    document.getElementById('newbest').classList.toggle('hidden', !isNew);
+    document.getElementById('newbest').classList.toggle('hidden', !isNew || victory);
+    // title + clear banner
+    document.getElementById('overTitle').innerHTML = victory ? 'YOU <span class="a">WIN</span>' : 'GAME <span class="a">OVER</span>';
+    const cb = document.getElementById('clearBanner');
+    cb.classList.toggle('hidden', !victory);
+    if (victory) cb.textContent = '★ ' + DIFFS[DIFFS.length-1].name + ' CLEARED ★';
     hudEl.classList.add('hidden');
-    callout('GAME OVER', true, '#ff5e8a'); announce([392, 311.13, 246.94], 'sawtooth'); say('Game Over');
+    callout(victory ? 'CLEARED' : 'GAME OVER', true, victory ? '#7df9ff' : '#ff5e8a');
     setTimeout(() => {
       if (state===ST.OVER){
         overEl.classList.remove('hidden'); overEl.classList.add('on');
@@ -604,7 +642,7 @@
   // ---------- spawning ----------
   function furthest(){ let m=-Infinity; for (const w of walls) if (w.dist>m) m=w.dist; return m===-Infinity?0:m; }
   function spawnStep(dt){
-    const d=DIFFS[diffIdx];
+    const d=DIFFS[stage];
     distAccum += speed*dt;
     const spacing = d.spacing;
     if (distAccum >= spacing){
@@ -617,14 +655,20 @@
 
   // ---------- update ----------
   function update(dt){
-    const d=DIFFS[diffIdx];
-    elapsed += dt;
-    speed = Math.min(d.base + elapsed*d.ramp, d.base + 190);
+    const d=DIFFS[stage];
+    elapsed += dt; stageTime += dt;
+    speed = Math.min(d.base + stageTime*d.ramp, d.base + 190);
 
-    // survival-milestone announcements ("LINE", "TRIANGLE", ...)
-    while (milestoneIdx < MILESTONES.length && elapsed >= MILESTONES[milestoneIdx].t){
+    // in-tier shape milestones ("LINE", "TRIANGLE", ...)
+    while (milestoneIdx < MILESTONES.length && stageTime >= MILESTONES[milestoneIdx].t){
       const m = MILESTONES[milestoneIdx++];
       callout(m.label, false, '#ffd166'); announce([784, 1046.5], 'square'); say(m.label);
+    }
+
+    // tier cleared at 60s -> climb to the next, or win if this was the last
+    if (stageTime >= STAGE_LEN){
+      if (stage < DIFFS.length - 1) advanceStage();
+      else { endRun(true); return; }
     }
 
     // player movement
