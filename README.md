@@ -37,13 +37,21 @@ update to installed clients.
 
 ## Controls
 
+Fully keyboard-navigable. In-game you steer; on the menu the arrows move a focus
+ring. **Escape is deliberately not used** for back (fullscreen / the portal
+iframe hijack it) — back is **Backspace**.
+
 | Input | Action |
 |---|---|
-| `←` / `→` or `A` / `D` | rotate the cursor around the core |
+| `←` / `→` or `A` / `D` | rotate the cursor around the core (in game) · change the focused menu value |
+| `↑` / `↓` or `W` / `S` | move the menu focus (menu) · scroll a screen |
 | **Tap & hold** left / right half (mobile, mouse) | rotate that way |
-| `SPACE` / `Enter` / tap | begin · retry |
-| `Esc` | back to menu |
+| `Enter` / `SPACE` / tap | select · begin · retry |
+| `Backspace` | back to menu / close a screen |
 | `M` | toggle sound |
+
+The title screen has **HIGH SCORES** (your best time per mode+tier, plus your
+world rank when signed in on GameVolt) and **TROPHIES** (the 31-trophy grid).
 
 ## Modes
 
