@@ -68,11 +68,20 @@ the nastier ones weighted in on higher tiers and deeper into an endless run.
 
 Survive **60 seconds** on a tier and the run **auto-advances into the next one,
 seamlessly, in the same run** — the field flips its spin, snaps to the tier's
-colour and the announcer calls the new level, while the timer keeps running. The
-shape milestones (LINE/TRIANGLE/SQUARE/PENTAGON/HEXAGON at 10s steps) mark
-progress toward each clear. Start on any tier; clearing the last one
-(**HEXAGONEST**) is a **YOU WIN**, and each tier you clear from earns a ★ on the
-menu (persisted). The HUD shows the tier you're currently in.
+colour and calls the new level, while the timer keeps running. A **ring meter**
+at the edge of the arena fills toward each clear so you can see it coming. Start
+on any tier; clearing the last one (**HEXAGONEST**) is a **YOU WIN**, and each
+tier you clear from earns a ★ on the menu (persisted). The HUD shows the tier
+you're currently in.
+
+## Trophies
+
+11 achievements (survive-time thresholds, clearing tiers, winning, seeing all
+three shapes in a run, close-call runs, playing endless, 25 runs…) unlock from
+play, persist to `localStorage`, and pop a toast when earned. Browse them on the
+**🏆 TROPHIES** screen from the title. Difficulty note: the easiest tier
+(**HEXAGON**) has a gentle base speed and a shallow ramp so it's an approachable
+way in.
 
 ## Feel
 
