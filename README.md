@@ -76,8 +76,9 @@ you're currently in.
 
 ## Trophies
 
-11 achievements (survive-time thresholds, clearing tiers, winning, seeing all
-three shapes in a run, close-call runs, playing endless, 25 runs…) unlock from
+31 trophies — 15 bronze, 10 silver, 5 gold and 1 platinum that unlocks once all
+the others are earned (survive-time thresholds, clearing tiers, winning, seeing
+each shape, close-call runs, endless survival, run counts…). They unlock from
 play, persist to `localStorage`, and pop a toast when earned. Browse them on the
 **🏆 TROPHIES** screen from the title. Difficulty note: the easiest tier
 (**HEXAGON**) has a gentle base speed and a shallow ramp so it's an approachable
