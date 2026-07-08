@@ -129,4 +129,31 @@ and no tunnelling. Walls come from a difficulty-weighted pattern spawner
 start of each run. The field spins, pulses on the beat and drifts through hues;
 the soundtrack is a small procedural WebAudio groove.
 
+## Portal / host integration
+
+The game is local-first (bests + trophies in `localStorage`), but it emits its
+results so a host site can collect scores with **no backend required**:
+
+- **Embedded in an iframe** — every run end and achievement unlock is
+  `postMessage`'d to the parent window. Listen for it:
+  ```js
+  addEventListener('message', e => {
+    if (e.data?.type === 'vhex:score')       { /* {mode,tier,time,won,personalBest,isNewBest,player,ts} */ }
+    if (e.data?.type === 'vhex:achievement') { /* {id,name,desc} */ }
+  });
+  ```
+- **Auto-POST to an API** — set a config before the game script runs and every
+  event is `fetch`-POSTed there as JSON:
+  ```html
+  <script>window.VECTOR_HEXAGON_CONFIG = { apiUrl: '/api/scores', playerId: 'abc', targetOrigin: 'https://your.portal' };</script>
+  ```
+  You can also send it later (e.g. after auth) via
+  `iframe.contentWindow.postMessage({ type:'vhex:config', config:{ apiUrl, playerId } }, '*')`.
+- **Read API** — `window.VectorHexagon` exposes `version`, `getBests()`,
+  `getAchievements()`, `getRunsPlayed()`, and `on('score'|'achievement', cb)`.
+
+Payloads include `game`, `version`, and `player` so the portal can attribute
+and version them. Nothing is sent anywhere unless a parent frame or `apiUrl`
+is present — standalone play stays fully local and offline.
+
 Built with Claude Code.

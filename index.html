@@ -259,7 +259,7 @@
   // ── VERSION ─────────────────────────────────────────────────────────────
   // Bump this AND the CACHE string in sw.js together on every deploy, so the
   // start screen shows the running version and installed apps update.
-  const VERSION = 'v1.6';
+  const VERSION = 'v1.7';
   const verEl = document.getElementById('version');
   if (verEl) verEl.textContent = VERSION;
   // ────────────────────────────────────────────────────────────────────────
@@ -325,6 +325,7 @@
     try { localStorage.setItem(achKey(id),'1'); } catch(e){}
     const a = ACH.find(x=>x.id===id); if (!a) return;
     toastQ.push(a); pumpToast();
+    emit('achievement', { id:a.id, name:a.name, desc:a.desc });
     const tr = document.getElementById('trophies');
     if (tr && !tr.classList.contains('hidden')) buildTrophies();
   }
@@ -348,6 +349,36 @@
     if (elapsed>=30) unlock('s30');
     if (endless && elapsed>=60) unlock('e60');
   }
+
+  // ---------- portal integration seam ----------
+  // Local-first, but ready to feed a host portal with zero backend today:
+  //  · embedded in an iframe -> results are postMessage'd to the parent
+  //  · window.VECTOR_HEXAGON_CONFIG.apiUrl set -> results are POSTed there
+  //  · window.VectorHexagon exposes read APIs + an on(type, cb) subscription
+  const PORTAL = (window.VECTOR_HEXAGON_CONFIG || {});
+  const hexListeners = { score:[], achievement:[] };
+  function emit(type, payload){
+    const msg = Object.assign({ game:'vector-hexagon', version:VERSION, type:'vhex:'+type,
+      player: PORTAL.playerId || null, ts: Date.now() }, payload);
+    try { (hexListeners[type]||[]).forEach(cb => cb(msg)); } catch(e){}
+    try { if (window.parent && window.parent !== window) window.parent.postMessage(msg, PORTAL.targetOrigin || '*'); } catch(e){}
+    if (PORTAL.apiUrl){
+      try { fetch(PORTAL.apiUrl, { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(msg), keepalive:true }).catch(()=>{}); } catch(e){}
+    }
+  }
+  // accept late config from the host (e.g. after the portal authenticates a user)
+  window.addEventListener('message', e => {
+    const d = e.data;
+    if (d && d.type==='vhex:config' && d.config) Object.assign(PORTAL, d.config);
+  });
+  window.VectorHexagon = {
+    version: VERSION,
+    getBests(){ return DIFFS.map((d,i)=>({ tier:d.key, climb:getBest(i), endless:getEBest(i), cleared:getCleared(i) })); },
+    getAchievements(){ return ACH.map(a=>({ id:a.id, name:a.name, desc:a.desc, unlocked:hasAch(a.id) })); },
+    getRunsPlayed(){ return getRuns(); },
+    on(type, cb){ (hexListeners[type]=hexListeners[type]||[]).push(cb); },
+  };
 
   // ---------- viewport ----------
   let W=0, H=0, cx=0, cy=0, scale=1, dpr=1;
@@ -820,6 +851,9 @@
     else        { deathSound(); buzz([45,40,130]); announce([392,311.13,246.94],'sawtooth'); say('Game Over'); }
     let isNew=false;
     if (elapsed > modeBest(diffIdx)){ modeSetBest(diffIdx, elapsed); isNew=true; }
+    // report the result to any host portal (postMessage / API / listeners)
+    emit('score', { mode: endless?'endless':'climb', tier: DIFFS[diffIdx].key, tierName: DIFFS[diffIdx].name,
+      time: +elapsed.toFixed(2), won: !!victory, personalBest: +modeBest(diffIdx).toFixed(2), isNewBest: isNew });
     document.getElementById('finalTime').textContent = fmt(elapsed);
     document.getElementById('overBest').textContent = 'BEST ' + fmt(modeBest(diffIdx));
     document.getElementById('newbest').classList.toggle('hidden', !isNew || victory);
