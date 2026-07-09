@@ -77,8 +77,10 @@ zig-zag · spike · double-gap · C-shape · 180-reversal · stutter) there are
 **authored signature set-pieces** — Spiral Staircase, Pendulum, The Bait, Twin
 Helix, The Pinch and Ladder Reversal — that carry their own rhythm: each wall
 can set a spacing multiplier (`wm(mask, mul)`), so a pattern can pack a tight
-burst or open a breather. The nastier patterns are weighted in on higher tiers
-and deeper into an endless run.
+burst or open a breather. Each set-piece **names itself on-screen** as it begins
+— a subtle tag below the HUD (e.g. `‹ SPIRAL STAIRCASE ›`) — so you learn to
+read the patterns by name. The nastier ones are weighted in on higher tiers and
+deeper into an endless run.
 
 ## Clearing a tier (60s) and climbing
 
